@@ -65,6 +65,7 @@ const userType = new GraphQLObjectType({
       id: { type: new GraphQLNonNull(UUIDType) },
       name: { type: new GraphQLNonNull(GraphQLString) },
       balance: { type: GraphQLInt },
+      profile: { type: profileType },
     }),
 });
 
@@ -113,11 +114,20 @@ export const queryType = new GraphQLObjectType({
           id: { type: new GraphQLNonNull(UUIDType) },
         },
         resolve: async (obj, args: { id: string }, context: { prisma: PrismaClient }) => {
-          return await context.prisma.post.findUnique({
-            where: {
-              id: args.id,
-            },
-          });
+          try {
+            const post = await context.prisma.post.findUnique({
+              where: {
+                id: args.id,
+              },
+            });
+    
+            if (post === null) {
+              throw new Error('An error occurred while performing this operation!');
+            }
+            return post;
+          } catch (error) {
+            return null;
+          }
         }
       },
       users: {
@@ -132,11 +142,20 @@ export const queryType = new GraphQLObjectType({
           id: { type: new GraphQLNonNull(UUIDType) },
         },
         resolve: async (obj, args: { id: string }, context: { prisma: PrismaClient }) => {
-          return await context.prisma.user.findUnique({
-            where: {
-              id: args.id,
-            },
-          });
+          try {
+            const user =  await context.prisma.user.findUnique({
+              where: {
+                id: args.id,
+              },
+            });
+  
+            if (user === null) {
+              throw new Error('An error occurred while performing this operation!');
+            }
+            return user;
+          } catch (error) {
+            return null;
+          }
         }
       },
       profiles: {
@@ -151,11 +170,20 @@ export const queryType = new GraphQLObjectType({
           id: { type: new GraphQLNonNull(UUIDType) },
         },
         resolve: async (obj, args: { id: string }, context: { prisma: PrismaClient }) => {
-          return await context.prisma.profile.findUnique({
-            where: {
-              id: args.id,
-            },
-          });
+          try {
+            const profile = await context.prisma.profile.findUnique({
+              where: {
+                id: args.id,
+              },
+            });
+  
+            if (profile === null) {
+              throw new Error('An error occurred while performing this operation!');
+            }
+            return profile;
+          } catch (error) {
+            return null;
+          }
         }
       },
     }),
