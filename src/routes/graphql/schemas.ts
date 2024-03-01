@@ -3,13 +3,14 @@ import {
   GraphQLBoolean,
   GraphQLEnumType, 
   GraphQLFloat, 
+  GraphQLInputObjectType, 
   GraphQLInt, 
   GraphQLList, 
   GraphQLNonNull, 
   GraphQLObjectType, 
   GraphQLSchema, 
   GraphQLString,
-} from "graphql"
+} from 'graphql'
 import { PrismaClient } from '@prisma/client';
 import { UUIDType } from './types/uuid.js';
 
@@ -41,7 +42,7 @@ const memberTypeIdType = new GraphQLEnumType({
 });
 
 const memberTypeType = new GraphQLObjectType({
-    name: "MemberType",
+    name: 'MemberType',
     fields: () => ({
         id: { type: new GraphQLNonNull(memberTypeIdType) },
         discount: { type: new GraphQLNonNull(GraphQLFloat) },
@@ -50,7 +51,7 @@ const memberTypeType = new GraphQLObjectType({
 });
 
 const postType = new GraphQLObjectType({
-  name: "Post",
+  name: 'Post',
   fields: () => ({
       id: { type: new GraphQLNonNull(UUIDType) },
       title: { type: new GraphQLNonNull(GraphQLString) },
@@ -60,7 +61,7 @@ const postType = new GraphQLObjectType({
 });
 
 const userType = new GraphQLObjectType({
-  name: "User",
+  name: 'User',
   fields: () => ({
       id: { type: new GraphQLNonNull(UUIDType) },
       name: { type: new GraphQLNonNull(GraphQLString) },
@@ -115,7 +116,7 @@ const userType = new GraphQLObjectType({
 });
 
 const profileType = new GraphQLObjectType({
-  name: "Profile",
+  name: 'Profile',
   fields: () => ({
       id: { type: new GraphQLNonNull(UUIDType) },
       isMale: { type: new GraphQLNonNull(GraphQLBoolean) },
@@ -135,8 +136,8 @@ const profileType = new GraphQLObjectType({
     }),
 });
 
-export const queryType = new GraphQLObjectType({
-    name: "Query",
+const queryType = new GraphQLObjectType({
+    name: 'Query',
     fields: () => ({
       memberTypes: {
         type: new GraphQLList(memberTypeType),
@@ -177,7 +178,7 @@ export const queryType = new GraphQLObjectType({
             });
     
             if (post === null) {
-              throw new Error('An error occurred while performing this operation!');
+              throw new Error('An error occurred while performing operation!');
             }
             return post;
           } catch (error) {
@@ -205,7 +206,7 @@ export const queryType = new GraphQLObjectType({
             });
   
             if (user === null) {
-              throw new Error('An error occurred while performing this operation!');
+              throw new Error('An error occurred while performing operation!');
             }
             return user;
           } catch (error) {
@@ -233,7 +234,7 @@ export const queryType = new GraphQLObjectType({
             });
   
             if (profile === null) {
-              throw new Error('An error occurred while performing this operation!');
+              throw new Error('An error occurred while performing operation!');
             }
             return profile;
           } catch (error) {
@@ -244,9 +245,140 @@ export const queryType = new GraphQLObjectType({
     }),
 });
 
+interface postDto {
+  title: string;
+  content: string; 
+  authorId: string;
+}
+
+interface userDto {
+  name: string; 
+  balance: number;
+}
+
+interface profileDto {
+  isMale: boolean;
+  yearOfBirth: number;
+  memberTypeId: string;
+  userId: string;
+}
+
+const postInputType = new GraphQLInputObjectType({
+  name: 'CreatePostInput',
+  fields: {
+      title: { type: new GraphQLNonNull(GraphQLString) },
+      content: { type: new GraphQLNonNull(GraphQLString) },
+      authorId: { type: new GraphQLNonNull(UUIDType) },
+    },
+});
+
+
+const userInputType = new GraphQLInputObjectType({
+  name: 'CreateUserInput',
+  fields: {
+      name: { type: new GraphQLNonNull(GraphQLString) },
+      balance: { type: GraphQLFloat },
+    },
+});
+
+const profileInputType = new GraphQLInputObjectType({
+  name: 'CreateProfileInput',
+  fields: {
+      isMale: { type: new GraphQLNonNull(GraphQLBoolean) },
+      yearOfBirth: { type: new GraphQLNonNull(GraphQLInt) },
+      userId: { type: new GraphQLNonNull(UUIDType) },
+      memberTypeId: { type: new GraphQLNonNull(memberTypeIdType) },
+    },
+});
+
+const mutations = new GraphQLObjectType({
+  name: 'Mutation',
+  fields: {
+    createPost: {
+      type: postType,
+      args: {
+        dto: { type: new GraphQLNonNull(postInputType) },
+      },
+      resolve: async (parent, { dto }: { dto: postDto }, context: { prisma: PrismaClient }) => {
+        const newPost = await context.prisma.post.create({
+          data: dto
+        });
+
+        return newPost;
+      }
+    },
+    createUser: {
+      type: userType,
+      args: {
+        dto: { type: new GraphQLNonNull(userInputType) },
+      },
+      resolve: async (parent, { dto }: { dto: userDto }, context: { prisma: PrismaClient }) => {
+        const newUser = await context.prisma.user.create({
+          data: dto
+        });
+
+        return newUser;
+      }
+    },
+    createProfile: {
+      type: profileType,
+      args: {
+        dto: { type: new GraphQLNonNull(profileInputType) },
+      },
+      resolve: async (parent, { dto }: { dto: profileDto }, context: { prisma: PrismaClient }) => {
+        const { yearOfBirth } = dto;
+        const currentYear = new Date().getFullYear();
+
+        if (!Number.isInteger(yearOfBirth) || !(yearOfBirth >= 1900 && yearOfBirth <= currentYear)) {
+          throw new Error('Error: Int cannot represent non-integer value: 123.321');
+        } 
+
+        const newProfile = await context.prisma.profile.create({
+          data: dto
+        });
+
+        return newProfile;
+      }
+    },
+    deletePost: {
+      type: GraphQLBoolean,
+      args: {
+        id: { type: new GraphQLNonNull(UUIDType) },
+      },
+      resolve: async (parent, args: { id: string }, context: { prisma: PrismaClient }) => {
+        await context.prisma.post.delete({
+          where: { id: args.id },
+        });
+      }
+    },
+    deleteProfile: {
+      type: GraphQLBoolean,
+      args: {
+        id: { type: new GraphQLNonNull(UUIDType) },
+      },
+      resolve: async (parent, args: { id: string }, context: { prisma: PrismaClient }) => {
+        await context.prisma.profile.delete({
+          where: { id: args.id },
+        });
+      }
+    },
+    deleteUser: {
+      type: GraphQLBoolean,
+      args: {
+        id: { type: new GraphQLNonNull(UUIDType) },
+      },
+      resolve: async (parent, args: { id: string }, context: { prisma: PrismaClient }) => {
+        await context.prisma.user.delete({
+          where: { id: args.id },
+        });
+      }
+    },
+  }
+});
+
 export const schema = new GraphQLSchema({ 
-  query: queryType, 
-  types: [memberTypeIdType, memberTypeType, postType, userType, profileType] 
+  query: queryType,
+  mutation: mutations,
 });
 
 
