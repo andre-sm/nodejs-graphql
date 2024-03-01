@@ -178,7 +178,7 @@ const queryType = new GraphQLObjectType({
             });
     
             if (post === null) {
-              throw new Error('An error occurred while performing operation!');
+              throw new Error('An error occurred while performing operation');
             }
             return post;
           } catch (error) {
@@ -206,7 +206,7 @@ const queryType = new GraphQLObjectType({
             });
   
             if (user === null) {
-              throw new Error('An error occurred while performing operation!');
+              throw new Error('An error occurred while performing operation');
             }
             return user;
           } catch (error) {
@@ -234,7 +234,7 @@ const queryType = new GraphQLObjectType({
             });
   
             if (profile === null) {
-              throw new Error('An error occurred while performing operation!');
+              throw new Error('An error occurred while performing operation');
             }
             return profile;
           } catch (error) {
@@ -272,7 +272,6 @@ const postInputType = new GraphQLInputObjectType({
     },
 });
 
-
 const userInputType = new GraphQLInputObjectType({
   name: 'CreateUserInput',
   fields: {
@@ -288,6 +287,27 @@ const profileInputType = new GraphQLInputObjectType({
       yearOfBirth: { type: new GraphQLNonNull(GraphQLInt) },
       userId: { type: new GraphQLNonNull(UUIDType) },
       memberTypeId: { type: new GraphQLNonNull(memberTypeIdType) },
+    },
+});
+
+const postChangeInputType = new GraphQLInputObjectType({
+  name: 'ChangePostInput',
+  fields: {
+      title: { type: new GraphQLNonNull(GraphQLString) },
+    },
+});
+
+const profileChangeInputType = new GraphQLInputObjectType({
+  name: 'ChangeProfileInput',
+  fields: {
+      isMale: { type: GraphQLBoolean },
+    },
+});
+
+const userChangeInputType = new GraphQLInputObjectType({
+  name: 'ChangeUserInput',
+  fields: {
+      name: { type: new GraphQLNonNull(GraphQLString) },
     },
 });
 
@@ -371,6 +391,114 @@ const mutations = new GraphQLObjectType({
         await context.prisma.user.delete({
           where: { id: args.id },
         });
+      }
+    },
+    changePost: {
+      type: postType,
+      args: {
+        id: { type: new GraphQLNonNull(UUIDType) },
+        dto: { type: new GraphQLNonNull(postChangeInputType) },
+      },
+      resolve: async (parent, args: { id: string, dto: postDto }, context: { prisma: PrismaClient }) => {
+        try {
+          const updatedPost = await context.prisma.post.update({
+            where: { id: args.id },
+            data: {
+              title: args.dto.title
+            },
+          });
+          return updatedPost;
+        } catch (error) {
+          console.error('Error: An error occurred while updating post');
+        }
+      }
+    },
+    changeProfile: {
+      type: profileType,
+      args: {
+        id: { type: new GraphQLNonNull(UUIDType) },
+        dto: { type: new GraphQLNonNull(profileChangeInputType) },
+      },
+      resolve: async (parent, args: { id: string, dto: profileDto }, context: { prisma: PrismaClient }) => {
+          // if (!args.dto.userId) {
+          //   throw new Error(`Field ${args.dto.userId} is not defined by type "ChangeProfileInput"`);
+          // }
+
+          return await context.prisma.profile.update({
+            where: { id: args.id },
+            data: {
+              isMale: args.dto.isMale
+            },
+          });
+      }
+    },
+    changeUser: {
+      type: userType,
+      args: {
+        id: { type: new GraphQLNonNull(UUIDType) },
+        dto: { type: new GraphQLNonNull(userChangeInputType) },
+      },
+      resolve: async (parent, args: { id: string, dto: userDto }, context: { prisma: PrismaClient }) => {
+        try {
+          const updatedUser = await context.prisma.user.update({
+            where: { id: args.id },
+            data: {
+              name: args.dto.name
+            },
+          });
+  
+          return updatedUser;
+        } catch (error) {
+          console.error('Error: An error occurred while updating user');
+        }
+      }
+    },
+    subscribeTo: {
+      type: userType,
+      args: {
+        userId: { type: new GraphQLNonNull(UUIDType) },
+        authorId: { type: new GraphQLNonNull(UUIDType) },
+      },
+      resolve: async (parent, args: { userId: string; authorId: string }, context: { prisma: PrismaClient }) => {
+        try {
+          return await context.prisma.user.update({
+            where: { id: args.userId },
+            data: {
+              userSubscribedTo: {
+                create: {
+                  authorId: args.authorId
+                }
+              },
+            },
+          });
+  
+        } catch (error) {
+          console.error('Error: An error occurred while updating user');
+        }
+      }
+    },
+    unsubscribeFrom: {
+      type: GraphQLBoolean,
+      args: {
+        userId: { type: new GraphQLNonNull(UUIDType) },
+        authorId: { type: new GraphQLNonNull(UUIDType) },
+      },
+      resolve: async (parent, args: { userId: string; authorId: string }, context: { prisma: PrismaClient }) => {
+        try {
+          await context.prisma.subscribersOnAuthors.delete({
+            where: { 
+              subscriberId_authorId: {
+                subscriberId: args.userId,
+                authorId: args.authorId,
+              } 
+             },
+          });
+  
+          return true;
+        } catch (error) {
+          console.error('Error: An error occurred while unsubscribe');
+          return false;
+        }
       }
     },
   }
