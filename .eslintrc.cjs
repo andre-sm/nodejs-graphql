@@ -32,5 +32,6 @@ module.exports = {
         argsIgnorePattern: '^_',
       },
     ],
+    "@typescript-eslint/no-unsafe-assignment": "off"
   },
 };
