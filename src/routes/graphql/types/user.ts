@@ -76,31 +76,63 @@ export const userType = new GraphQLObjectType({
     userSubscribedTo: {
       type: new GraphQLList(userType),
       resolve: async (parent: { id: string }, args, context: Context) => {
-        const subs = await context.prisma.user.findMany({
-          where: {
-            subscribedToUser: {
-              some: {
-                subscriberId: parent.id,
+        const { prisma, loaders } = context;
+
+        let subsLoader = loaders['userSubscribedTo'];
+        if (!subsLoader) {
+          subsLoader = new DataLoader(async (ids: Readonly<string[]>) => {
+            const users = await prisma.user.findMany({
+              where: {
+                subscribedToUser: {
+                  some: {
+                    subscriberId: { in: ids as string[] },
+                  },
+                },
               },
-            },
-          },
-        });
-        return subs;
+              include: { subscribedToUser: true },
+            });
+            return ids.map((id) =>
+              users.filter((user) =>
+                user.subscribedToUser.find((sub) => sub.subscriberId === id),
+              ),
+            );
+          });
+
+          loaders['userSubscribedTo'] = subsLoader;
+        }
+
+        return subsLoader.load(parent.id);
       },
     },
     subscribedToUser: {
       type: new GraphQLList(userType),
       resolve: async (parent: { id: string }, args, context: Context) => {
-        const subs = await context.prisma.user.findMany({
-          where: {
-            userSubscribedTo: {
-              some: {
-                authorId: parent.id,
+        const { prisma, loaders } = context;
+
+        let subsLoader = loaders['subscribedToUser'];
+        if (!subsLoader) {
+          subsLoader = new DataLoader(async (ids: Readonly<string[]>) => {
+            const users = await prisma.user.findMany({
+              where: {
+                userSubscribedTo: {
+                  some: {
+                    authorId: { in: ids as string[] },
+                  },
+                },
               },
-            },
-          },
-        });
-        return subs;
+              include: { userSubscribedTo: true },
+            });
+            return ids.map((id) =>
+              users.filter((user) =>
+                user.userSubscribedTo.find((sub) => sub.authorId === id),
+              ),
+            );
+          });
+
+          loaders['subscribedToUser'] = subsLoader;
+        }
+
+        return subsLoader.load(parent.id);
       },
     },
   }),
